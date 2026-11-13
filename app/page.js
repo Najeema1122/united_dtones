@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Gem, ShieldCheck, Headset, LayoutGrid, Truck, Hammer, MapPin, Phone, Instagram, Play, Menu, X, Search, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import FeaturedVideos from "../components/FeaturedVideos";
@@ -139,15 +139,111 @@ function HeroCarousel({ entered }) {
   );
 }
 
-function About() { return <section className="about section-shell" id="about"><div className="about-copy"><p className="eyebrow dark-eyebrow">A LEGACY IN EVERY SLAB</p><h2>About United Stones</h2><span className="short-rule" /><p>We bring you premium quality marble, granite, tiles and natural stones, crafted to enhance every space. With a commitment to excellence and timeless beauty, United Stones is your trusted partner in building elegant and durable spaces.</p><ul className="about-services">{services.map(([Icon, title, text]) => <li key={title}><Icon size={22} strokeWidth={1.5} aria-hidden="true" /><span><strong>{title}</strong> {text}</span></li>)}</ul><a className="solid-btn" href="#contact">LEARN MORE <ArrowRight size={16} /></a></div><div className="about-image" role="img" aria-label="Premium stone slab showroom" /></section>; }
-function StatsStrip() { const stats = [["1000+", "Happy Clients"], ["500+", "Completed Projects"], ["Premium", "Quality Stones"], ["100%", "Customer Commitment"]]; return <section className="stats-strip" aria-label="United Stones at a glance">{stats.map(([value, label]) => <div className="stat-item" key={label}><strong>{value}</strong><span>{label}</span></div>)}</section>; }
+function About() {
+  return (
+    <section className="about section-shell" id="about">
+      <div className="about-copy">
+        <p className="eyebrow dark-eyebrow">A LEGACY IN EVERY SLAB</p>
+        <h2>About United Stones</h2><span className="short-rule" />
+        <p>We have 10 years of experience helping clients choose marble,
+          granite, tiles and other natural stones. We serve clients across
+          Kerala, Tamil Nadu and Karnataka. With a commitment to excellence
+          and timeless beauty, United Stones is your trusted partner in building
+          elegant and durable spaces.</p>
+        <ul className="about-services">
+          {services.map(([Icon, title, text]) =>
+            <li key={title}><Icon size={22} strokeWidth={1.5} aria-hidden="true" />
+              <span><strong>{title}</strong> {text}</span></li>)}
+        </ul>
+        <a className="solid-btn" href="#contact">LEARN MORE <ArrowRight size={16} /></a></div>
+      <div className="about-image" role="img" aria-label="Premium stone slab showroom" /></section>);
+}
+const stats = [
+  { value: 1000, suffix: "+", label: "Happy Clients" },
+  { value: 500, suffix: "+", label: "Completed Projects" },
+  { value: "Premium", label: "Quality Stones" },
+  { value: 100, suffix: "%", label: "Customer Commitment" },
+];
+const formatStat = new Intl.NumberFormat("en-IN");
+
+function StatItem({ stat, entered }) {
+  const item = useRef(null);
+  const numeric = typeof stat.value === "number";
+  const finalText = numeric ? formatStat.format(stat.value) + stat.suffix : stat.value;
+  const [display, setDisplay] = useState(finalText);
+  const [pendingFade, setPendingFade] = useState(false);
+
+  useEffect(() => {
+    if (!entered || !("IntersectionObserver" in window)) return;
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (motion.matches) return;
+
+    let frame;
+    let startTime;
+    const animate = time => {
+      startTime ??= time;
+      const progress = Math.min((time - startTime) / 1000, 1);
+      const count = Math.floor(stat.value * (1 - (1 - progress) ** 3));
+      setDisplay(formatStat.format(count) + stat.suffix);
+      if (progress < 1) frame = requestAnimationFrame(animate);
+    };
+
+    if (numeric) setDisplay("0" + stat.suffix);
+    else setPendingFade(true);
+
+    const observer = new IntersectionObserver(entries => {
+      if (!entries.some(entry => entry.isIntersecting)) return;
+      observer.disconnect();
+      if (numeric) frame = requestAnimationFrame(animate);
+      else setPendingFade(false);
+    }, { threshold: 0.25 });
+    observer.observe(item.current);
+
+    const finishImmediately = () => {
+      if (!motion.matches) return;
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+      setDisplay(finalText);
+      setPendingFade(false);
+    };
+    motion.addEventListener("change", finishImmediately);
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+      motion.removeEventListener("change", finishImmediately);
+    };
+  }, [entered, stat, numeric, finalText]);
+
+  return (
+    <div className="stat-item" ref={item}>
+      <strong className="stat-value" aria-hidden="true" data-pending={pendingFade}>{display}</strong>
+      <span className="stat-reader-value">{finalText} </span>
+      <span>{stat.label}</span>
+    </div>
+  );
+}
+
+function StatsStrip({ entered }) {
+  return (
+    <section className="stats-strip" aria-label="United Stones at a glance">
+      {stats.map(stat => <StatItem key={stat.label} stat={stat} entered={entered} />)}
+    </section>
+  );
+}
+
 function Categories() { return <section className="categories section-shell" id="categories"><div className="section-title"><span /><h2>Our Categories</h2><span /></div><div className="category-grid">{categories.map(c => <Link className="category-card" href={c.href} key={c.name} style={{ backgroundImage: `linear-gradient(0deg,rgba(0,0,0,.75),transparent 68%),url('${c.image}')` }}><span>{c.name}<ArrowRight size={17} /></span></Link>)}</div></section>; }
 function Benefits() { return <section className="benefits">{benefits.map(([Icon, title, sub]) => <div className="benefit" key={title}><Icon size={31} strokeWidth={1.45} /><h3>{title}</h3><p>{sub}</p></div>)}</section>; }
-const showrooms = ["Kuttiady", "Payyoli"];
-const showroomMap = town =>
-  "https://www.google.com/maps/search/?api=1&query=" +
-  encodeURIComponent("United Stones, " + town + ", Kerala");
-const youtubeChannel = process.env.NEXT_PUBLIC_YOUTUBE_CHANNEL_URL;
+const showrooms = [
+  { town: "Kuttiady", locality: "Cheriya Kumbalam", phone: "+91 23423 45645" },
+  { town: "Payyoli", locality: "Thikkodi", phone: "+91 43434 34354" },
+];
+
+function showroomMap({ town, locality }) {
+  const query = `United Stones, ${locality}, ${town}, Kerala`;
+  return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(query);
+}
+
+
 
 function CustomerCare() {
   return (
@@ -171,20 +267,25 @@ function Footer() {
     <footer className="footer">
       <div className="footer-main">
         <Brand footer />
-        <div className="branches">
-          <h3>Visit our showrooms</h3>
-          <div className="footer-towns">
-            {showrooms.map(town => (
-              <a key={town} href={showroomMap(town)} target="_blank" rel="noreferrer" aria-label={`Find United Stones in ${town} on Google Maps`}>
-                <MapPin size={15} aria-hidden="true" /> {town}
-              </a>
-            ))}
-          </div>
+        <div className="footer-showrooms">
+          {showrooms.map(showroom => (
+            <section className="footer-showroom" key={showroom.town}>
+              <h3>{showroom.town} showroom</h3>
+              <address>
+                <a href={showroomMap(showroom)} target="_blank" rel="noreferrer"
+                  aria-label={`Find ${showroom.town} showroom in ${showroom.locality} on Google Maps`}>
+                  <MapPin size={16} aria-hidden="true" /> {showroom.locality}
+                </a>
+                <a href={`tel:${showroom.phone.replace(/\s/g, "")}`}>
+                  <Phone size={16} aria-hidden="true" /> {showroom.phone}
+                </a>
+              </address>
+            </section>
+          ))}
         </div>
         <div className="footer-contact">
-          <a href={callCustomerCare}><Phone size={20} /> {customerCarePhone}</a>
-          <a href="https://instagram.com" target="_blank" rel="noreferrer" aria-label="Instagram"><Instagram size={23} /></a>
-          <a href={youtubeChannel || "#videos"} aria-label={youtubeChannel ? "Our YouTube channel" : "Featured YouTube videos"}>
+          <a href="https://www.instagram.com/_united_stones?dlrf=aHYyemI4eng4MWVm" target="_blank" rel="noreferrer" aria-label="Instagram"><Instagram size={23} /></a>
+          <a href="https://youtube.com/@unitedstones.calicut?si=9LYsGw9qDnpOb3kU" target="_blank" rel="noreferrer" aria-label="United Stones on YouTube">
             <Play size={18} aria-hidden="true" /> YouTube
           </a>
         </div>
@@ -220,7 +321,7 @@ export default function Home() {
     return () => window.clearTimeout(timer);
   }, [phase]);
 
-  useEffect(() => { const targets = document.querySelectorAll("main > section:not(.hero), .footer"); if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || !("IntersectionObserver" in window)) { targets.forEach(el => el.classList.add("is-visible")); return } const observer = new IntersectionObserver(entries => entries.forEach(entry => { if (entry.isIntersecting) { entry.target.classList.add("is-visible"); observer.unobserve(entry.target) } }), { threshold: 0.01, rootMargin: "0px 0px -8% 0px" }); targets.forEach(el => { el.classList.add("scroll-reveal"); observer.observe(el) }); return () => observer.disconnect() }, []);
+  useEffect(() => { const targets = document.querySelectorAll("main > section:not(.hero):not(.stats-strip), .footer"); if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || !("IntersectionObserver" in window)) { targets.forEach(el => el.classList.add("is-visible")); return } const observer = new IntersectionObserver(entries => entries.forEach(entry => { if (entry.isIntersecting) { entry.target.classList.add("is-visible"); observer.unobserve(entry.target) } }), { threshold: 0.01, rootMargin: "0px 0px -8% 0px" }); targets.forEach(el => { el.classList.add("scroll-reveal"); observer.observe(el) }); return () => observer.disconnect() }, []);
 
   return (
     <>
@@ -232,7 +333,7 @@ export default function Home() {
         <main>
           <HeroCarousel entered={entered} />
           <About />
-          <StatsStrip />
+          <StatsStrip entered={entered} />
           <Categories />
           <FeaturedVideos />
           <Benefits />
